@@ -10,7 +10,7 @@ def main():
 
     if len(sys.argv) != 3:
         sys.exit(
-            "Usage: python extraction.py summarization-corpus LIIOfIndia-corpus")
+            "Usage: python tfidfs.py summarization-corpus LIIOfIndia-corpus")
     print("Loading data...")
     print("Calculating term frequencies...")
     term_frequencies_corpus = _create_term_frequency_matrix(sys.argv[1])
@@ -45,8 +45,7 @@ def main():
     TF_IDFS_JSON_FILE_PATH = os.path.join(os.getcwd(), "TF-IDFs.json")
     with open(TF_IDFS_JSON_FILE_PATH, 'w') as fout:
         # Sorting the data in descending order
-        json.dump({k: v for k, v in sorted(idfs.items(),
-                                           key=lambda item: item[1], reverse=True)}, fout)
+        json.dump(tfidfs, fout)
 
 
 def _create_idf_matrix(directory):
@@ -92,7 +91,7 @@ def _create_term_frequency_matrix(directory):
     for filename in os.listdir(directory):
         with open(os.path.join(directory, filename)) as f:
             term_frequencies[filename] = _create_tf_matrix(
-                _create_frequency_matrix(f.read()))
+                _create_frequency_matrix(nltk.sent_tokenize(f.read())))
 
     return term_frequencies
 
@@ -100,14 +99,12 @@ def _create_term_frequency_matrix(directory):
 def _create_frequency_matrix(sentences):
     frequency_matrix = {}
     stopWords = set(nltk.corpus.stopwords.words("english"))
-    ps = nltk.PorterStemmer()
 
     for sent in sentences:
         freq_table = {}
         words = nltk.word_tokenize(sent)
         for word in words:
             word = word.lower()
-            word = ps.stem(word)
             if word in stopWords:
                 continue
 
