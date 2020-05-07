@@ -10,14 +10,14 @@ def main():
 
     if len(sys.argv) != 3:
         sys.exit(
-            "Usage: python extraction.py term-frequencies-corpus to-be-summarized-corpus")
+            "Usage: python extraction.py summarization-corpus LIIOfIndia-corpus")
     print("Loading data...")
     print("Calculating term frequencies...")
-    term_frequencies_corpus = _create_tf_matrix(sys.argv[1])
+    term_frequencies_corpus = _create_term_frequency_matrix(sys.argv[1])
 
     # Calculate IDFs
     print("Calculating inverse document frequencies...")
-    idfs = idf_calculate(sys.argv[2])
+    idfs = _create_idf_matrix(sys.argv[2])
 
     # Save IDFs in a json file
     IDFS_JSON_FILE_PATH = os.path.join(os.getcwd(), "IDFs.json")
@@ -30,20 +30,24 @@ def main():
     print("Calculating TF-IFDs...")
     tfidfs = dict()
     for filename in term_frequencies_corpus:
-        tfidfs[filename] = []
-        for word in term_frequencies_corpus[filename]:
-            tf = term_frequencies_corpus[filename][word]
-            if word not in idfs:
-                idfs[word] = 0
-            tfidfs[filename].append((word, tf * idfs[word]))
-    
+        tfidfs[filename] = dict()
+        for sentence in term_frequencies_corpus[filename]:
+            word_tf_idfs_matrix = dict()
+            for word in term_frequencies_corpus[filename][sentence]:
+                tf = term_frequencies_corpus[filename][sentence][word]
+                if word not in idfs:
+                    idfs[word] = 0
+                word_tf_idfs_matrix[word] = tf*idfs[word]
+
+            tfidfs[filename][sentence] = word_tf_idfs_matrix
+
     # Save TF-IDFs in a json file
-    TF-IDFS_JSON_FILE_PATH = os.path.join(os.getcwd(), "TF-IDFs.json")
-    with open(TF-IDFS_JSON_FILE_PATH, 'w') as fout:
+    TF_IDFS_JSON_FILE_PATH = os.path.join(os.getcwd(), "TF-IDFs.json")
+    with open(TF_IDFS_JSON_FILE_PATH, 'w') as fout:
         # Sorting the data in descending order
         json.dump({k: v for k, v in sorted(idfs.items(),
                                            key=lambda item: item[1], reverse=True)}, fout)
-    
+
 
 def _create_idf_matrix(directory):
     """ Calculate the idfs from available data """
@@ -54,12 +58,12 @@ def _create_idf_matrix(directory):
         # For each year
         for case_folder in os.listdir(os.path.join(directory, year_folder)):
             # For each case in the year
-            directory = os.path.join(
+            case_folder_path = os.path.join(
                 directory, (year_folder + os.sep + case_folder))
-            for filename in os.listdir(directory):
+            for filename in os.listdir(case_folder_path):
                 total_documents += 1
                 # For each file in the case
-                with open(os.path.join(directory, filename)) as f:
+                with open(os.path.join(case_folder_path, filename)) as f:
 
                     # Extract words
                     contents = {
@@ -82,6 +86,17 @@ def _create_idf_matrix(directory):
     return idf_matrix
 
 
+def _create_term_frequency_matrix(directory):
+    """ Calculate the term matrix for each file """
+    term_frequencies = dict()
+    for filename in os.listdir(directory):
+        with open(os.path.join(directory, filename)) as f:
+            term_frequencies[filename] = _create_tf_matrix(
+                _create_frequency_matrix(f.read()))
+
+    return term_frequencies
+
+
 def _create_frequency_matrix(sentences):
     frequency_matrix = {}
     stopWords = set(nltk.corpus.stopwords.words("english"))
@@ -89,7 +104,7 @@ def _create_frequency_matrix(sentences):
 
     for sent in sentences:
         freq_table = {}
-        words = word_tokenize(sent)
+        words = nltk.word_tokenize(sent)
         for word in words:
             word = word.lower()
             word = ps.stem(word)
