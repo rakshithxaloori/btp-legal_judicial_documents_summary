@@ -113,7 +113,7 @@ def _create_frequency_matrix(sentences):
             else:
                 freq_table[word] = 1
 
-        frequency_matrix[sent[:15]] = freq_table
+        frequency_matrix[sent] = freq_table
 
     return frequency_matrix
 
