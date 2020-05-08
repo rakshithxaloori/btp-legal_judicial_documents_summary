@@ -98,15 +98,12 @@ def _create_term_frequency_matrix(directory):
 
 def _create_frequency_matrix(sentences):
     frequency_matrix = {}
-    stopWords = set(nltk.corpus.stopwords.words("english"))
 
     for sent in sentences:
         freq_table = {}
         words = nltk.word_tokenize(sent)
         for word in words:
             word = word.lower()
-            if word in stopWords:
-                continue
 
             if word in freq_table:
                 freq_table[word] += 1

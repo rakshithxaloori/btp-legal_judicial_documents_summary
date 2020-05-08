@@ -8,50 +8,59 @@ from count_words import count_word
 
 
 class Summary:
-    self.summary = list()
-    self.case = list()
+    def __init__(self):
+        self.summary = list()
+        self.case = list()
 
-    # Count of the words
-    self.count = dict()
-    f = open("indian-summary-len-a1.txt". 'r')
-    read_line = f.readline()
-    while read_line != "":
-        split_line = read_line.split(" ")
-        self.count[split_line[0]] = split_line[1]
+        # Count of the words
+        print("Loading the counts...")
+        self.count = dict()
+        f = open("indian-summary-len-a1.txt", 'r')
+        read_line = f.readline()
+        while read_line != "":
+            split_line = read_line.split(" ")
+            self.count[split_line[0]] = int(split_line[1])
+            read_line = f.readline()
 
-    # Load the tf-idfs created using tfidfs.py
-    f = open("TF-IDFs.json", 'r')
-    self.tfidfs = json.load(f)
+        # Load the tf-idfs created using tfidfs.py
+        print("Loading the tfidfs...")
+        f = open("TF-IDFs.json", 'r')
+        self.tfidfs = json.load(f)
 
-    # The value of lambda
-    self.l = 0.01
+        # The value of lambda
+        self.l = 0.1
 
     def create_summary(self, directory):
         """ Takes a directory and creates the summaries of each file in the directory """
         # Create a directory with lambda as the name of the directory in the summaries
+        print("Creating summaries")
         try:
-            os.mkdir(os.path.join("summaries", ("summary - " + self.l)))
+            os.mkdir(os.path.join("summaries", ("summary - " + str(self.l))))
         except OSError as error:
             print(error)
         for filename in os.listdir(directory):
+            print("Creating summary for ", filename)
             with open(os.path.join(directory, filename)) as f:
                 self.case = nltk.sent_tokenize(f.read())
-                max_mr_dict = dict()
+                count = 0
                 while count < self.count[filename]:
-                    for sentence in self.case:
-                        max_mr_dict[sentence] = self._maximum_marginal_relevance(
-                            filename, sentence)
-
-                    # Choose the maximum among them and add them to summary
                     maxValue = -math.inf
                     maxSentence = None
-                    for sentence, value in max_mr_dict.items():
+                    for sentence in self.case:
+                        value = self._maximum_marginal_relevance(
+                            filename, sentence)
                         if value > maxValue:
+                            # Choose the maximum among them and add them to summary
                             maxValue = value
                             maxSentence = sentence
 
                     # Add this sentence to the summary
+                    print("--------------------------------------")
+                    print(maxSentence)
+                    print(count_word(maxSentence))
                     count += count_word(maxSentence)
+                    print(count)
+                    print("--------------------------------------")
                     self.summary.append(maxSentence)
                     self.case.remove(maxSentence)
 
@@ -65,11 +74,14 @@ class Summary:
                 sentence_index[sentence] = total_doc.index(sentence)
 
             # Order them according to the indices (values in the dict)
-            ordered_sentences = [k: v for k, v in sorted(
-                sentence_index.items(), key=lambda item: item[1])]
+            ordered_sentences = {k: v for k, v in sorted(
+                sentence_index.items(), key=lambda item: item[1])}
 
-            with open(os.path.join(os.path.join("summaries", ("summary - " + self.l)), (filename + "_summary")), 'w') as fout:
-                fout.write(ordered_sentences)
+            with open(os.path.join(os.path.join("summaries", ("summary - " + str(self.l))), (filename + "_summary")), 'a') as fout:
+                for sentence in ordered_sentences:
+                    fout.write(sentence)
+
+            print("created summary for" + filename + "!")
 
             # Clear the summary, case
             self.summary.clear()
@@ -82,22 +94,25 @@ class Summary:
 
     def _sim(self, filename, sentence, group):
         """ Calculates the _similarity of a sentence with a group of sentences """
+        if len(group) == 0:
+            return 0
+
         total_count = len(group)
         total_sum = 0
 
         for compare_sentence in group:
-            sentence_list = word_tokenize(sentence)
-            compare_sentence_list = word_tokenize(compare_sentence)
+            if sentence == compare_sentence:
+                continue
+            sentence_list = nltk.word_tokenize(sentence)
+            compare_sentence_list = nltk.word_tokenize(compare_sentence)
 
-            # sw contains the list of stopwords
-            sw = stopwords.words('english')
             l1 = []
             l2 = []
 
             # Remove stop words from string
-            sentence_set = {w for w in sentence_list if not w in sw}
+            sentence_set = {w for w in sentence_list}
             compare_sentence_set = {
-                w for w in compare_sentence_list if not w in sw}
+                w for w in compare_sentence_list}
 
             # Form a set containing keys of both strings
             rvector = sentence_set.union(compare_sentence_set)
@@ -105,11 +120,23 @@ class Summary:
             # Create vectors to find cosine distance
             for w in rvector:
                 if w in sentence_set:
-                    l1.append(self.tfidfs[filename][sentence][w])
+                    try:
+                        l1.append(self.tfidfs[filename][sentence][w.lower()])
+                    except KeyError as error:
+                        print(error)
+                        print(filename, " --- ", sentence, " --- ", w.lower())
+                        raise KeyError
                 else:
                     l1.append(0)
                 if w in compare_sentence_set:
-                    l2.append(self.tfidfs[filename][compare_sentence][w])
+                    try:
+                        l2.append(self.tfidfs[filename]
+                                  [compare_sentence][w.lower()])
+                    except KeyError as error:
+                        print(error)
+                        print(filename, " --- ", compare_sentence,
+                              " --- ", w.lower())
+                        raise KeyError
                 else:
                     l2.append(0)
             c = 0
@@ -117,11 +144,15 @@ class Summary:
             # Cosine formula
             for i in range(len(rvector)):
                 c += l1[i]*l2[i]
-            cosine = c / float((sum(l1)*sum(l2))**0.5)
+            try:
+                cosine = c / float((sum(l1)*sum(l2))**0.5)
+            except ZeroDivisionError:
+                continue
             total_sum += cosine
 
         # Return the average of _similarity
         return total_sum/total_count
+
 
 def main():
     if len(sys.argv) != 2:
@@ -132,6 +163,7 @@ def main():
     while summary.l <= 1.0:
         summary.create_summary(summarization_corpus)
         summary.l += 0.1
+
 
 if __name__ == "__main__":
     main()
