@@ -80,6 +80,7 @@ class Summary:
             with open(os.path.join(os.path.join("summaries", ("summary - " + str(self.l))), (filename + "_summary")), 'a') as fout:
                 for sentence in ordered_sentences:
                     fout.write(sentence)
+                    fout.write("\n")
 
             print("created summary for" + filename + "!")
 
