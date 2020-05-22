@@ -21,11 +21,13 @@ class Summary:
             split_line = read_line.split(" ")
             self.count[split_line[0]] = int(split_line[1])
             read_line = f.readline()
+        f.close()
 
         # Load the tf-idfs created using tfidfs.py
         print("Loading the tfidfs...")
         f = open("TF-IDFs.json", 'r')
         self.tfidfs = json.load(f)
+        f.close()
 
         # The value of lambda
         self.l = 0.1
